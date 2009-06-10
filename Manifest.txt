@@ -1,0 +1,8 @@
+History.txt
+Manifest.txt
+README.txt
+Rakefile
+init.rb
+lib/xml_stream_parser.rb
+spec/xml_stream_parser_spec.rb
+xml_stream_parser.gemspec
