@@ -182,6 +182,54 @@ EOF
                       "charles"=>"likes alice"})
     end
 
+    it "should parse a list of people and their friends" do
+      doc = <<-EOF
+<people>
+  <person name="alice">
+    <friend name="bob"/>
+    <likes>cheese</likes>
+    <friend name="charles"/>
+  </person>
+  <person name="bob">
+    <friend name="alice"/>
+    <likes>wolf dogs</likes>
+  </person>
+  <person name="charles">
+    <friend name="alice"/>
+    <likes>bach</likes>
+  </person>
+</people>
+EOF
+      
+      XmlStreamParser.new.parse(doc) do |p|
+        people = {}
+        friends = {}
+        
+        p.consume("people") do |name,attrs|
+          p.consume_many("person") do |name, attrs|
+            person_name = attrs["name"]
+            people[person_name] ||= {:friends=>Set.new([]), :likes=>Set.new([]) }
+
+            p.consume_many(["friend","likes"]) do |name,attrs|
+              case name
+                when "friend" then
+                people[person_name][:friends] << attrs["name"]
+                when "likes" then
+                people[person_name][:likes] << p.consume_text
+              end
+            end
+          end
+        end
+
+        people
+      end.should ==( { 
+                       "alice"=>{ :friends=>Set.new(["bob","charles"]), :likes=>Set.new(["cheese"])},
+                       "bob"=>{ :friends=>Set.new(["alice"]), :likes=>Set.new(["wolf dogs"])},
+                       "charles"=>{ :friends=>Set.new(["alice"]), :likes=>Set.new(["bach"])}
+                     }) 
+
+    end
+
   end
 
 end
