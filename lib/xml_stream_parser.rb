@@ -91,7 +91,7 @@ class XmlStreamParser
   # if find=false assume the parser is already pointing at such an element.
   # consume a start_element, call a block on the content, consume the end_element
   # returns the name of the consumed element, or nil if one wasn't found
-  def consume_element( element_names, find=true, &block )
+  def consume( element_names, find=true, &block )
     element_names = [ *element_names ]
     return nil if find && ! find_element(element_names)
 
@@ -112,8 +112,8 @@ class XmlStreamParser
   end
 
   # optionally find and consume a text element
-  def consume_text_element( element_names, find=true, &block )
-    consume_element(element_name, find) do |name,attrs|
+  def consume_text( element_names, find=true, &block )
+    consume(element_names, find) do |name,attrs|
       e = @pull_parser.peek
       raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
       text = if e.text?
