@@ -112,12 +112,16 @@ class XmlStreamParser
       
       # block should consume all element content, and leave parser on end_element, or
       # whitespace before it
+      ok = false
       begin
         r = block.call(name, attrs)
+        ok = true
       ensure  # that if return is called in the block, we consume the end_element
-        e = @pull_parser.pull
-        e = @pull_parser.pull if e.text? && e[0] =~ /[[:space:]]/
-        raise "expected end tag: #{name}, got: #{e.inspect}" if ! e.end_element? || e[0] != name
+        if ok
+          e = @pull_parser.pull
+          e = @pull_parser.pull if e.text? && e[0] =~ /[[:space:]]/
+          raise "expected end tag: #{name}, got: #{e.inspect}" if ! e.end_element? || e[0] != name
+        end
       end
       
       r
