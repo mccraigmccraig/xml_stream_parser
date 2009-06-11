@@ -2,6 +2,7 @@
 
 require 'rubygems'
 require 'spec'
+require 'set'
 require File.expand_path( File.join( File.dirname(__FILE__) , ".." , "lib", "xml_stream_parser" ) )
 
 describe XmlStreamParser do
