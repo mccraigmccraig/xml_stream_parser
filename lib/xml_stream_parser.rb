@@ -1,3 +1,4 @@
+require 'stringio'
 require 'rexml/document'
 require 'rexml/parsers/pullparser'
 
@@ -18,33 +19,47 @@ class XmlStreamParser
   VERSION = "0.1.0"
   
   # the REXML::Parsers::PullParser used internally
-  attr_reader :parser
+  attr_reader :pull_parser
 
-  # construct on an IO
-  def initialize(io)
-    @parser = REXML::Parsers::PullParser.new( io )
+  def parse(data, &block)
+    io = case data
+         when IO
+           data
+         when String
+           StringIO.new(data)
+         end
+
+    @pull_parser = REXML::Parsers::PullParser.new( io )
+    block.call(self)
+  ensure
+    @pull_parser = nil
   end
 
-  # find an element with name from element_names, and hand off to a block for processing
+  # find an element with name from element_names, ignoring
   # - encountering an end_element terminates and returns nil, leaving parser pointing to end_element
   # - encountering end_document terminates and returns nil
-  # - block is called with parser pointing to start_element of matching element. block return value is returned (must be non-nil)
-  # - the block should consume the element, leaving the parser pointing after it's end_element
-  def find_element( element_names, &block )
+  # - name of found element is returned
+  def find_element( element_names, ignore_element_names=[] )
     element_names = [ *element_names ]
+    ignore_element_names = [ *ignore_element_names ]
 
     element_stack = []
 
     while( true )
-      e = @parser.peek
+      e = @pull_parser.peek
       if e.start_element?
-        if element_stack.size==0 && element_names.include?( e[0] )
-          v = block.call # block must consume the matched element, and return some value
-          raise "block must return a value for element: #{e[0]}" if ! v
-          return v
-        else
+        if element_stack.size == 0
+          if element_names.include?( e[0] )
+            return e[0]
+          elsif element_names.empty? || ignore_element_names.include?( e[0] )
+            element_stack.push( e[0] )
+            @pull_parser.pull
+          else
+            raise "unexpected element: #{e.inspect}"
+          end
+        else # ignored content
           element_stack.push( e[0] )
-          @parser.pull
+          @pull_parser.pull
         end
       elsif e.end_element?
         if element_stack.size == 0
@@ -52,7 +67,7 @@ class XmlStreamParser
         else
           if element_stack.last == e[0]
             element_stack.pop
-            @parser.pull
+            @pull_parser.pull
           else
             raise "mismatched end element: <#{e[0]}>"
           end
@@ -62,42 +77,52 @@ class XmlStreamParser
         return nil
       elsif e.text? 
         # ignore whitespace between elements
-        raise "unexpected text content: #{e.to_s}" if e[0] !~ /[[:space:]]/
-          @parser.pull
+        raise "unexpected text content: #{e.inspect}" if e[0] !~ /[[:space:]]/ if element_stack.size>0
+        @pull_parser.pull
+      else
+        @pull_parser.pull # other xml goop
       end
     end
   end
 
+  # optionally find, and consume, an element
+  #
+  # if find=true, search for an element from element_names, ignoring whitespace. 
+  # if find=false assume the parser is already pointing at such an element.
   # consume a start_element, call a block on the content, consume the end_element
-  # the value of the block call is returned
-  def consume_element( element_name, &block )
-    e = @parser.pull
-    raise "expected start tag: #{element_name}, got: #{e.inspect}" if ! e.start_element? || e[0] != element_name
-    attrs = e[1]
+  # returns the name of the consumed element, or nil if one wasn't found
+  def consume_element( element_names, find=true, &block )
+    element_names = [ *element_names ]
+    return nil if find && ! find_element(element_names)
 
+    e = @pull_parser.pull
+    raise "expected start tag: <#{element_names.join('|')}>, got: #{e.inspect}" if ! e.start_element? || ! element_names.include?(e[0])
+    name = e[0]
+    attrs = e[1]
+    
     # block should consume all element content, and leave parser on end_element, or
     # whitespace before it
-    v = block.call
-
-    e = @parser.pull
-    e = @parser.pull if e.text? && e[0] =~ /[[:space:]]/
-    raise "expected end tag: #{element_name}, got: #{e.inspect}" if ! e.end_element? || e[0] != element_name
-
-    [v, attrs]
+    block.call(name, attrs)
+    
+    e = @pull_parser.pull
+    e = @pull_parser.pull if e.text? && e[0] =~ /[[:space:]]/
+    raise "expected end tag: #{name}, got: #{e.inspect}" if ! e.end_element? || e[0] != name
+    
+    name
   end
 
-  # parser should be positioned on start_element
-  # returns text, attributes_hash
-  def consume_text_element( element_name )
-    consume_element(element_name) do
-      e = @parser.peek
+  # optionally find and consume a text element
+  def consume_text_element( element_names, find=true, &block )
+    consume_element(element_name, find) do |name,attrs|
+      e = @pull_parser.peek
       raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
-      if e.text?
-        @parser.pull
-        e[0]
-      else
-        ""
-      end
+      text = if e.text?
+               @pull_parser.pull
+               e[0]
+             else
+               ""
+             end
+      block.call( name, attrs, text )
     end
   end
 
