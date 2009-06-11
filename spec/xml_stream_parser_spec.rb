@@ -98,7 +98,8 @@ describe XmlStreamParser do
         p.element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
-        end.should ==("foo")
+          "blockresult"
+        end.should ==("blockresult")
         e = p.pull_parser.peek
         e.end_document?.should ==(true)
         "foofoo"
@@ -110,20 +111,33 @@ describe XmlStreamParser do
         p.element( ["bar","foo"] ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
+          "blockresult"
         end
-      end.should ==("foo")
+      end.should ==("blockresult")
     end
 
-    it "should ignore whitespace inside element" do |p|
+    it "should ignore whitespace inside element" do
       XmlStreamParser.new.parse( '<foo a="one" b="two">  \n  \n</foo>') do |p|
         p.element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
-        end.should ==("foo")
+          "blockresult"
+        end.should ==("blockresult")
         e = p.pull_parser.peek
         e.end_document?.should ==(true)
         "foofoo"
       end.should ==("foofoo")
+    end
+
+    it "should return NOTHING if it finds no matching element" do
+      called = false
+      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
+        p.element("foo") do |name,attrs|
+          called = true
+          p.element("bar"){ |name,attrs|}.should ==(XmlStreamParser::NOTHING)
+        end
+      end
+      called.should ==(true)
     end
   end
 
@@ -133,9 +147,9 @@ describe XmlStreamParser do
         p.element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"bar" })
-          p.text.should ==("hello mum")
+          p.text
         end
-      end.should ==("foo")
+      end.should ==("hello mum")
     end
 
     it "should raise if the element contains element content" do

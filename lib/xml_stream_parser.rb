@@ -17,6 +17,14 @@ end
 class XmlStreamParser
 
   VERSION = "0.1.0"
+
+  class Nothing
+    def to_s
+      Nothing.to_s
+    end
+  end
+
+  NOTHING = Nothing.new
   
   # the REXML::Parsers::PullParser used internally
   attr_reader :pull_parser
@@ -90,10 +98,10 @@ class XmlStreamParser
     # if find=true, search for an element from element_names, ignoring whitespace. 
     # if find=false assume the parser is already pointing at such an element.
     # consume a start_element, call a block on the content, consume the end_element
-    # returns the name of the consumed element, or nil if one wasn't found
+    # returns the results of the block, or NOTHING if one wasn't found
     def element( element_names, find=true, &block )
       element_names = [ *element_names ]
-      return nil if find && ! find_element(element_names)
+      return NOTHING if find && ! find_element(element_names)
 
       e = @pull_parser.pull
       raise "expected start tag: <#{element_names.join('|')}>, got: #{e.inspect}" if ! e.start_element? || ! element_names.include?(e[0])
@@ -102,21 +110,23 @@ class XmlStreamParser
       
       # block should consume all element content, and leave parser on end_element, or
       # whitespace before it
-      block.call(name, attrs)
+      r = block.call(name, attrs)
       
       e = @pull_parser.pull
       e = @pull_parser.pull if e.text? && e[0] =~ /[[:space:]]/
       raise "expected end tag: #{name}, got: #{e.inspect}" if ! e.end_element? || e[0] != name
       
-      name
+      r
     end
 
+    # find and consume elements, calling block on each one found
     def elements( element_names, &block )
-      while (element(element_names,&block))
+      while (NOTHING != element(element_names,&block))
       end
     end
 
     # consume text
+    # returns the text, or nil if none
     def text( &block )
       e = @pull_parser.peek
       raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
