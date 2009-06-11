@@ -6,6 +6,16 @@ require 'set'
 require File.expand_path( File.join( File.dirname(__FILE__) , ".." , "lib", "xml_stream_parser" ) )
 
 describe XmlStreamParser do
+  it "should work on a StringIO" do
+    io = StringIO.new( "<foo/>")
+    XmlStreamParser.new.parse(io) do |p|
+      p.element("foo") do |name,attrs|
+        name.should ==("foo")
+        name
+      end
+    end.should ==("foo")
+  end
+
   it "should parse a simple one element document" do
     XmlStreamParser.new.parse( "<foo></foo>" ) do |p|
       called = false

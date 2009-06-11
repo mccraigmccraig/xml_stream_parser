@@ -33,6 +33,8 @@ class XmlStreamParser
     io = case data
          when IO
            data
+         when StringIO
+           data
          when String
            StringIO.new(data)
          end
