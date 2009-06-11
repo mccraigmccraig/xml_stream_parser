@@ -204,13 +204,12 @@ EOF
 EOF
       
       XmlStreamParser.new.parse(doc) do |p|
-        people = {}
-        friends = {}
+        people = Hash.new{ |h,k| h[k] = {:friends=>Set.new([]), :likes=>Set.new([]) } }
         
         p.element("people") do |name,attrs|
           p.elements("person") do |name, attrs|
             person_name = attrs["name"]
-            people[person_name] ||= {:friends=>Set.new([]), :likes=>Set.new([]) }
+            people[person_name]
 
             p.elements(["friend","likes"]) do |name,attrs|
               case name
