@@ -8,7 +8,7 @@ describe XmlStreamParser do
   it "should parse a simple one element document" do
     XmlStreamParser.new.parse( "<foo></foo>" ) do |p|
       called = false
-      p.consume("foo") { |name,attrs|
+      p.element("foo") { |name,attrs|
         called = true
         name.should ==("foo")
         attrs.should ==({})
@@ -73,7 +73,7 @@ describe XmlStreamParser do
     it "should return nil if element context terminates" do |p|
       called = false
       XmlStreamParser.new.parse( '<foo> </foo>' ) do |p|
-        p.consume("foo") do |name,attrs|
+        p.element("foo") do |name,attrs|
           name.should ==("foo")
 
           n = p.find_element("bar")
@@ -94,7 +94,7 @@ describe XmlStreamParser do
     
     it "should consume an element, giving name and attributes to the provided block and returning block result" do
       XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do |p|
-        p.consume( "foo" ) do |name, attrs|
+        p.element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
         end.should ==("foo")
@@ -106,7 +106,7 @@ describe XmlStreamParser do
 
     it "should consume one of many element names, giving name and attrs to block and returning block result" do
       XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do |p|
-        p.consume( ["bar","foo"] ) do |name, attrs|
+        p.element( ["bar","foo"] ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
         end
@@ -115,7 +115,7 @@ describe XmlStreamParser do
 
     it "should ignore whitespace inside element" do |p|
       XmlStreamParser.new.parse( '<foo a="one" b="two">  \n  \n</foo>') do |p|
-        p.consume( "foo" ) do |name, attrs|
+        p.element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
         end.should ==("foo")
@@ -126,13 +126,13 @@ describe XmlStreamParser do
     end
   end
 
-  describe "consume_text" do
+  describe "text" do
     it "should consume an element with text content and give it's name, attrs, text to the block and return the block result" do
       XmlStreamParser.new.parse( '<foo a="bar">hello mum</foo>') do |p|
-        p.consume_text( "foo" ) do |name, attrs, text|
+        p.element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"bar" })
-          text.should ==("hello mum")
+          p.text.should ==("hello mum")
         end
       end.should ==("foo")
     end
@@ -140,7 +140,8 @@ describe XmlStreamParser do
     it "should raise if the element contains element content" do
       lambda {
         XmlStreamParser.new.parse( '<foo a="bar"><bar/></foo>') do |p|
-          p.consume_text( "foo" ) do |name, attrs, text|
+          p.element("foo") do |name,attrs|
+            p.text()
           end
         end
       }.should raise_error(RuntimeError)
@@ -149,7 +150,8 @@ describe XmlStreamParser do
     it "should raise if the element contains mixed content" do
       lambda {
         XmlStreamParser.new.parse( '<foo a="bar">some <bar/> text</foo>') do |p|
-          p.consume_text( "foo" ) do |name, attrs, text|
+          p.element("foo") do |name,attrs|
+            p.text()
           end
         end
       }.should raise_error(RuntimeError)
@@ -170,9 +172,9 @@ EOF
       XmlStreamParser.new.parse(doc) do |p|
         people = {}
         
-        p.consume("people") do |name,attrs|
-          p.consume_many("person") do |name, attrs|
-            people[attrs["name"]] = p.consume_text
+        p.element("people") do |name,attrs|
+          p.elements("person") do |name, attrs|
+            people[attrs["name"]] = p.text
           end
         end
 
@@ -205,17 +207,17 @@ EOF
         people = {}
         friends = {}
         
-        p.consume("people") do |name,attrs|
-          p.consume_many("person") do |name, attrs|
+        p.element("people") do |name,attrs|
+          p.elements("person") do |name, attrs|
             person_name = attrs["name"]
             people[person_name] ||= {:friends=>Set.new([]), :likes=>Set.new([]) }
 
-            p.consume_many(["friend","likes"]) do |name,attrs|
+            p.elements(["friend","likes"]) do |name,attrs|
               case name
-                when "friend" then
+              when "friend" then
                 people[person_name][:friends] << attrs["name"]
-                when "likes" then
-                people[person_name][:likes] << p.consume_text
+              when "likes" then
+                people[person_name][:likes] << p.text
               end
             end
           end
