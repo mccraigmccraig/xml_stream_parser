@@ -111,19 +111,23 @@ class XmlStreamParser
     name
   end
 
-  # optionally find and consume a text element
-  def consume_text( element_names, find=true, &block )
-    consume(element_names, find) do |name,attrs|
-      e = @pull_parser.peek
-      raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
-      text = if e.text?
-               @pull_parser.pull
-               e[0]
-             else
-               ""
-             end
-      block.call( name, attrs, text )
+  def consume_many( element_names, &block )
+    while (consume(element_names,&block))
     end
+  end
+
+  # consume text
+  def consume_text( &block )
+    e = @pull_parser.peek
+    raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
+    text = if e.text?
+             @pull_parser.pull
+             e[0]
+           else
+             nil
+           end
+    block.call( text ) if block
+    text
   end
 
 

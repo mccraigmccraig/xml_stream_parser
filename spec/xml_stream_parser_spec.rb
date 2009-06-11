@@ -170,10 +170,9 @@ EOF
       XmlStreamParser.new.parse(doc) do |p|
         people = {}
         
-        p.consume_text("people") do |name,attrs,text|
-          while ( p.consume_text("person") {  |name, attrs, text|
-                    people[attrs["name"]] = text
-                  } )
+        p.consume("people") do |name,attrs|
+          p.consume_many("person") do |name, attrs|
+            people[attrs["name"]] = p.consume_text
           end
         end
 
