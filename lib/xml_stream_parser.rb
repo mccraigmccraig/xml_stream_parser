@@ -148,7 +148,7 @@ class XmlStreamParser
   end
 
   # find and consume elements, calling block on each one found
-  # return result of last find : NOTHING or END_CONTEXT sentinel
+  # return nil
   def elements( element_names, &block )
     while true
       break if element(element_names, true, &block).is_a? Sentinel
