@@ -28,7 +28,7 @@ end
 
 Spec::Rake::SpecTask.new do |t|
   t.name = :spec
-  t.warning = true
+  t.warning = false
   t.rcov = false
   t.spec_files = FileList["spec/**/*_spec.rb"]
   t.libs << "./lib"

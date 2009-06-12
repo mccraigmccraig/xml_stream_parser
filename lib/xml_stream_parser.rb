@@ -84,10 +84,33 @@ class XmlStreamParser
     end
   end
 
-  # consume, an element
-  #
-  # consume a start_element, call a block on the content, consume the end_element
-  # returns the results of the block, or NOTHING if one wasn't found
+  # parse and throw away content until we escape the current context, either
+  # through end_element, or end_document
+  def discard()
+    element_stack = []
+
+    while(true)
+      e = @pull_parser.peek
+      name = e[0]
+      if e.start_element?
+        element_stack.push(name)
+      elsif e.end_element?
+        return nil if element_stack.size == 0
+        raise "mismatched end_element. expected </#{element_stack.last}>, got: #{e.inspect}" if name != element_stack.last
+        element_stack.pop
+      elsif e.end_document?
+        return nil if element_stack.size ==0
+        raise "mismatched end_element. expected </#{element_stack.last}>, got: #{e.inspect}"
+      end
+      @pull_parser.pull
+    end
+  end
+
+  # consume an element
+  # - if optional is false the element must be present
+  # - if optional is true and the element is not present then NOTHING/END_CONTEXT
+  #   will be returned
+  # - consumes start_element, calls block on content, consumes end_element
   def element( element_names, optional=false, &block )
     element_names = [ *element_names ]
 
@@ -111,7 +134,7 @@ class XmlStreamParser
     err=false
     begin
       v = block.call(name, attrs)
-      return v if ! v.is_a? Sentinel # 
+      return v if ! v.is_a? Sentinel # do not propagate Sentinels. they confuse callers
     rescue
       err=true  # note that we are erroring, so as not to mask the exception from ensure block
       raise
@@ -148,5 +171,6 @@ class XmlStreamParser
     block.call( text ) if block
     text
   end
+
 end
 

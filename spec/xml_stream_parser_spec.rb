@@ -83,6 +83,37 @@ describe XmlStreamParser do
     end
   end
 
+  describe "discard" do
+    
+    it "should discard text content of an element" do |p|
+      XmlStreamParser.new.parse( '<foo>blah blah blah</foo>') do |p|
+        p.element("foo") do |name,attrs|
+          p.discard
+          "foo"
+        end
+      end.should ==("foo")
+    end
+
+    it "should discard element content of an element" do |p|
+      XmlStreamParser.new.parse( '<foo><bar/><foobar></foobar></foo>') do |p|
+        p.element("foo") do |name,attrs|
+          p.discard
+          "foo"
+        end
+      end.should ==("foo")
+    end
+
+    it "should discard mixed content of an element" do |p|
+      XmlStreamParser.new.parse( '<foo><bar/>blah blah<foobar></foobar> blah blah </foo>') do |p|
+        p.element("foo") do |name,attrs|
+          p.discard
+          "foo"
+        end
+      end.should ==("foo")
+    end
+
+  end
+
   describe "element" do
 
     it "should return NOTHING if optional and element not found" do
@@ -118,7 +149,7 @@ describe XmlStreamParser do
             "bar"
           end.should ==(XmlStreamParser::END_CONTEXT)
         end
-      end.should ==(nil)
+      end.should_not ==(XmlStreamParser::END_CONTEXT)
       called.should == (true)
     end
 
@@ -239,6 +270,31 @@ describe XmlStreamParser do
         end
       }.should raise_error(RuntimeError)
     end
+  end
+
+  describe "elements" do
+    it "should consume multiple elements" do
+      el_counts = Hash.new(0)
+      XmlStreamParser.new.parse( '<foo><bar/><bar/><foobar/></foo>') do |p|
+        p.element("foo") do |name,attrs|
+          p.elements( ["bar","foobar"] ) do |name,attrs|
+            el_counts[name] += 1
+          end
+        end
+      end
+      el_counts.should ==({ "bar"=>2, "foobar"=>1 })
+    end
+
+    it "should not complain if there are no matching elements" do
+      XmlStreamParser.new.parse( '<foo></foo>') do |p|
+        p.element("foo") do |name,attrs|
+          p.elements( ["bar","foobar"] ) do |name,attrs|
+            el_counts[name] += 1
+          end
+        end
+      end
+    end
+    
   end
 
   describe "some more complex examples" do
