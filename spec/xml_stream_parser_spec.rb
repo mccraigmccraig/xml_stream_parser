@@ -41,54 +41,27 @@ describe XmlStreamParser do
       end
     end
 
-    it "should throw on unexpected elements" do
+    it "should return NOTHING on unexpected elements" do
       XmlStreamParser.new.parse( "<foo></foo>") do |p|
-        lambda { 
-          name = p.find_element("bar")
-        }.should raise_error( RuntimeError )
-      end
+        p.find_element("bar")
+      end.should ==(XmlStreamParser::NOTHING)
     end
 
     it "should match one of multiple elements" do
       XmlStreamParser.new.parse( "<foo></foo>" ) do |p|
-        name = p.find_element( ["bar","foo" ] )
-        name.should ==( "foo" )
-      end
+        p.find_element( ["bar","foo" ] )
+      end.should ==("foo")
     end
 
-    it "should skip ignored elements" do
-      XmlStreamParser.new.parse( "<foo></foo><bar></bar>" ) do |p|
-        name = p.find_element( "bar", "foo" )
-        name.should ==( "bar" )
-      end
-    end
 
-    it "should skip ignored elements even containing a non-ignored element" do
-      XmlStreamParser.new.parse( '<foo>random <bar b="1"> text</bar></foo><bar b="2"></bar>' ) do |p|
-        name = p.find_element( "bar", "foo" )
-        name.should ==( "bar" )
-        e = p.pull_parser.pull
-        e[0].should ==("bar")
-        e[1].should ==( { "b"=>"2" } )
-      end
-    end
-
-    it "should raise on premature document termination" do
-      lambda {
-        XmlStreamParser.new.parse( '<foo>' ) do |p|
-          name = p.find_element( "bar", "foo" )
-        end
-      }.should raise_error(RuntimeError)
-    end
-
-    it "should return nil if element context terminates" do |p|
+    it "should return END_CONTEXT if element context terminates" do |p|
       called = false
-      XmlStreamParser.new.parse( '<foo> </foo>' ) do |p|
+      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
         p.element("foo") do |name,attrs|
           name.should ==("foo")
 
           n = p.find_element("bar")
-          n.should ==(nil)
+          n.should ==(XmlStreamParser::END_CONTEXT)
 
           e = p.pull_parser.peek
           e.end_element?.should ==(true)
@@ -99,10 +72,105 @@ describe XmlStreamParser do
       end
       called.should ==(true)
     end
+
+    it "should return END_CONTEXT if document ends" do |p|
+      XmlStreamParser.new.parse( '<foo></foo>') do |p|
+        p.element("foo") do |name,attrs|
+        end
+        f = p.find_element("bar")
+        f.should ==( XmlStreamParser::END_CONTEXT )
+      end
+    end
   end
 
-  describe "consume" do
-    
+  describe "element" do
+
+    it "should return NOTHING if optional and element not found" do
+      XmlStreamParser.new.parse( '<foo><foofoo/></foo>' ) do |p|
+        p.element("foo") do |name,attrs|
+          p.element("bar",true) do |name,attrs|
+            "bar"
+          end.should ==(XmlStreamParser::NOTHING)
+          p.element("foofoo") do |name,attrs|
+            "foofoo"
+          end
+        end
+      end.should ==("foofoo" )
+    end
+
+    it "should return END_CONTEXT if optional and context ends" do
+      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
+        p.element("foo") do |name,attrs|
+          p.element("bar",true) do |name,attrs|
+            "bar"
+          end.should ==(XmlStreamParser::END_CONTEXT)
+          "foofoo"
+        end
+      end.should ==("foofoo")
+    end
+
+    it "should not propagate sentinel values up the call hierarchy" do
+      called = false
+      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
+        p.element("foo") do |name,attrs|
+          called = true
+          p.element("bar",true) do |name,attrs|
+            "bar"
+          end.should ==(XmlStreamParser::END_CONTEXT)
+        end
+      end.should ==(nil)
+      called.should == (true)
+    end
+
+    def parse_bar( p )
+      p.element("bar") do |name,attrs|
+        return "barbar"
+      end
+    end
+
+    it "should consume the end tag even if block calls return" do
+      XmlStreamParser.new.parse( '<foo><bar/></foo>') do |p|
+        p.element( "foo" ) do |name, attrs|
+          parse_bar( p )
+        end
+      end.should ==("barbar" )
+    end
+
+    it "should consume the end tag even if block calls break" do
+      XmlStreamParser.new.parse( '<foo><bar/></foo>') do |p|
+        p.element( "foo" ) do |name, attrs|
+          p.element( "bar" ) do |name, attrs|
+            break
+          end
+          "foo"
+        end
+      end.should ==( "foo" )
+    end
+
+    it "should raise on premature document termination" do
+      lambda {
+        XmlStreamParser.new.parse( '<foo>' ) do |p|
+          p.element("foo") do |name,attrs|
+            p.element("bar",false) do |name,attrs|
+              "bar"
+            end
+          end
+        end
+      }.should raise_error(RuntimeError)
+    end
+
+    it "should raise on premature context termination" do
+      lambda {
+        XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
+          p.element("foo") do |name,attrs|
+            p.element("bar",false) do |name,attrs|
+              "bar"
+            end
+          end
+        end
+      }.should raise_error(RuntimeError)
+    end
+
     it "should consume an element, giving name and attributes to the provided block and returning block result" do
       XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do |p|
         p.element( "foo" ) do |name, attrs|
@@ -139,16 +207,6 @@ describe XmlStreamParser do
       end.should ==("foofoo")
     end
 
-    it "should return NOTHING if it finds no matching element" do
-      called = false
-      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
-        p.element("foo") do |name,attrs|
-          called = true
-          p.element("bar"){ |name,attrs|}.should ==(XmlStreamParser::NOTHING)
-        end
-      end
-      called.should ==(true)
-    end
   end
 
   describe "text" do
