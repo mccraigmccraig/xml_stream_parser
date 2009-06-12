@@ -17,15 +17,33 @@ a basic library for pull parsing of large xml documents
 == PROBLEMS:
 
  - it's very basic
- - no validation
+ - no validation. probably missing a pile of useful features
 
 == SYNOPSIS:
+
+# parse xml stream data, possibly never ending, and do things with it. e.g.
+
+doc = <<-EOF
+<people>
+  <person name="alice">likes cheese</person>
+  <person name="bob">likes music</person>
+  <person name="charles">likes alice</person>
+</people>
+EOF
+
+# can be parsed with :
 
 require 'rubygems'
 require 'xml_stream_parser'
 
-# parse xml stream data, possibly never ending, and do things with it
-
+people = {}
+XmlStreamParser.new.parse(doc) do |p|
+  p.element("people") do |name,attrs|
+    p.elements("person") do |name, attrs|
+      people[attrs["name"]] = p.text
+    end
+  end
+end
 
 == REQUIREMENTS:
 
