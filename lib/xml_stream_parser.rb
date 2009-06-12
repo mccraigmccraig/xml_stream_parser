@@ -87,67 +87,63 @@ class XmlStreamParser
         return nil
       elsif e.text? 
         # ignore whitespace between elements
-        raise "unexpected text content: #{e.inspect}" if e[0] !~ /[[:space:]]/ if element_stack.size>0
-                                                                                 @pull_parser.pull
-                                                                               else
-                                                                                 @pull_parser.pull # other xml goop
-                                                                               end
+        raise "unexpected text content: #{e.inspect}" if e[0] !~ /[[:space:]]/ && element_stack.size>0
+        @pull_parser.pull
       end
     end
-
-    # optionally find, and consume, an element
-    #
-    # if find=true, search for an element from element_names, ignoring whitespace. 
-    # if find=false assume the parser is already pointing at such an element.
-    # consume a start_element, call a block on the content, consume the end_element
-    # returns the results of the block, or NOTHING if one wasn't found
-    def element( element_names, find=true, &block )
-      element_names = [ *element_names ]
-      return NOTHING if find && ! find_element(element_names)
-
-      e = @pull_parser.pull
-      raise "expected start tag: <#{element_names.join('|')}>, got: #{e.inspect}" if ! e.start_element? || ! element_names.include?(e[0])
-      name = e[0]
-      attrs = e[1]
-      
-      # block should consume all element content, and leave parser on end_element, or
-      # whitespace before it
-      ok = false
-      begin
-        r = block.call(name, attrs)
-        ok = true
-      ensure  # that if return is called in the block, we consume the end_element
-        if ok
-          e = @pull_parser.pull
-          e = @pull_parser.pull if e.text? && e[0] =~ /[[:space:]]/
-          raise "expected end tag: #{name}, got: #{e.inspect}" if ! e.end_element? || e[0] != name
-        end
-      end
-      
-      r
-    end
-
-    # find and consume elements, calling block on each one found
-    def elements( element_names, &block )
-      while (NOTHING != element(element_names,&block))
-      end
-    end
-
-    # consume text
-    # returns the text, or nil if none
-    def text( &block )
-      e = @pull_parser.peek
-      raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
-      text = if e.text?
-               @pull_parser.pull
-               e[0]
-             else
-               nil
-             end
-      block.call( text ) if block
-      text
-    end
-
-
-    
   end
+
+  # optionally find, and consume, an element
+  #
+  # if find=true, search for an element from element_names, ignoring whitespace. 
+  # if find=false assume the parser is already pointing at such an element.
+  # consume a start_element, call a block on the content, consume the end_element
+  # returns the results of the block, or NOTHING if one wasn't found
+  def element( element_names, find=true, &block )
+    element_names = [ *element_names ]
+    return NOTHING if find && ! find_element(element_names)
+
+    e = @pull_parser.pull
+    raise "expected start tag: <#{element_names.join('|')}>, got: #{e.inspect}" if ! e.start_element? || ! element_names.include?(e[0])
+    name = e[0]
+    attrs = e[1]
+    
+    # block should consume all element content, and leave parser on end_element, or
+    # whitespace before it
+    ok = false
+    begin
+      r = block.call(name, attrs)
+      ok = true
+    ensure  # that if return is called in the block, we consume the end_element
+      if ok
+        e = @pull_parser.pull
+        e = @pull_parser.pull if e.text? && e[0] =~ /[[:space:]]/
+        raise "expected end tag: #{name}, got: #{e.inspect}" if ! e.end_element? || e[0] != name
+      end
+    end
+    
+    r
+  end
+
+  # find and consume elements, calling block on each one found
+  def elements( element_names, &block )
+    while (NOTHING != element(element_names,&block))
+    end
+  end
+
+  # consume text
+  # returns the text, or nil if none
+  def text( &block )
+    e = @pull_parser.peek
+    raise "expected text node, got #{e.inspect}" if ! e.text? && ! e.end_element?
+    text = if e.text?
+             @pull_parser.pull
+             e[0]
+           else
+             nil
+           end
+    block.call( text ) if block
+    text
+  end
+end
+
