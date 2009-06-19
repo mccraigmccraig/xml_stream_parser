@@ -310,17 +310,17 @@ describe XmlStreamParser do
 </people>
 EOF
 
+      people = {}
+
       XmlStreamParser.new.parse(doc) do
-        people = {}
-        
         element("people") do |name,attrs|
           elements("person") do |name, attrs|
             people[attrs["name"]] = text
           end
         end
+      end
 
-        people
-      end.should ==({ "alice"=>"likes cheese",
+      people.should ==({ "alice"=>"likes cheese",
                       "bob"=>"likes music",
                       "charles"=>"likes alice"})
     end
@@ -344,9 +344,9 @@ EOF
 </people>
 EOF
       
+      people = Hash.new{ |h,k| h[k] = {:friends=>Set.new([]), :likes=>Set.new([]) } }
+
       XmlStreamParser.new.parse(doc) do
-        people = Hash.new{ |h,k| h[k] = {:friends=>Set.new([]), :likes=>Set.new([]) } }
-        
         element("people") do |name,attrs|
           elements("person") do |name, attrs|
             person_name = attrs["name"]
@@ -362,9 +362,9 @@ EOF
             end
           end
         end
+      end
 
-        people
-      end.should ==( { 
+      people.should ==( { 
                        "alice"=>{ :friends=>Set.new(["bob","charles"]), :likes=>Set.new(["cheese"])},
                        "bob"=>{ :friends=>Set.new(["alice"]), :likes=>Set.new(["wolf dogs"])},
                        "charles"=>{ :friends=>Set.new(["alice"]), :likes=>Set.new(["bach"])}
