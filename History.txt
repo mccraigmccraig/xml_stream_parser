@@ -2,3 +2,6 @@
 
 * initial release
 
+=== 0.2.0 / 2009-06-19
+
+* more dsl like syntax
