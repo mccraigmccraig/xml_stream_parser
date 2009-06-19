@@ -40,8 +40,19 @@ class XmlStreamParser
 
   # the REXML::Parsers::PullParser used internally
   attr_reader :pull_parser
+  attr_reader :dsl
 
+  # parse retaining block context... permitting
+  # the parse to easily be split over multiple methods
   def parse(data, &block)
+    parse_dsl(data, false, &block)
+  end
+
+  # parse with optional dsl mode
+  # if dsl is true [ default ] then the block will be instance_exec'd in
+  # the context of the parser, if dsl is false the block will be called
+  # retaining it's current context
+  def parse_dsl(data, dsl=true, &block)
     io = case data
          when IO
            data
@@ -52,7 +63,12 @@ class XmlStreamParser
          end
 
     @pull_parser = REXML::Parsers::PullParser.new( io )
-    self.instance_exec(&block)
+    @dsl = dsl
+    if self.dsl
+      self.instance_exec(&block)
+    else
+      block.call(self)
+    end
   ensure
     @pull_parser = nil
   end
@@ -134,7 +150,11 @@ class XmlStreamParser
     # whitespace before it
     err=false
     begin
-      v = self.instance_exec(name, attrs, &block)
+      if self.dsl
+        v = self.instance_exec(name, attrs, &block)
+      else
+        v = block.call(name,attrs)
+      end
       return v if ! v.is_a? Sentinel # do not propagate Sentinels. they confuse callers
     rescue
       err=true  # note that we are erroring, so as not to mask the exception from ensure block
@@ -169,7 +189,13 @@ class XmlStreamParser
            else
              nil
            end
-    self.instance_exec( text , &block) if block
+    if block
+      if self.dsl
+        text = self.instance_exec( text , &block)
+      else
+        text = block.call(text)
+      end
+    end
     text
   end
 

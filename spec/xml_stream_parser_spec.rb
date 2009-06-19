@@ -8,7 +8,7 @@ require File.expand_path( File.join( File.dirname(__FILE__) , ".." , "lib", "xml
 describe XmlStreamParser do
   it "should work on a StringIO" do
     io = StringIO.new( "<foo/>")
-    XmlStreamParser.new.parse(io) do
+    XmlStreamParser.new.parse_dsl(io) do
       element("foo") do |name,attrs|
         name.should ==("foo")
         name
@@ -17,7 +17,7 @@ describe XmlStreamParser do
   end
 
   it "should parse a simple one element document" do
-    XmlStreamParser.new.parse( "<foo></foo>" ) do
+    XmlStreamParser.new.parse_dsl( "<foo></foo>" ) do
       called = false
       element("foo") { |name,attrs|
         called = true
@@ -31,7 +31,7 @@ describe XmlStreamParser do
   describe "find_element" do
     
     it "should skip whitespace to find an element" do
-      XmlStreamParser.new.parse( "   \n\n\n<foo></foo>") do
+      XmlStreamParser.new.parse_dsl( "   \n\n\n<foo></foo>") do
         name = find_element("foo")
         name.should ==("foo")
         e = pull_parser.pull
@@ -42,13 +42,13 @@ describe XmlStreamParser do
     end
 
     it "should return NOTHING on unexpected elements" do
-      XmlStreamParser.new.parse( "<foo></foo>") do
+      XmlStreamParser.new.parse_dsl( "<foo></foo>") do
         find_element("bar")
       end.should ==(XmlStreamParser::NOTHING)
     end
 
     it "should match one of multiple elements" do
-      XmlStreamParser.new.parse( "<foo></foo>" ) do
+      XmlStreamParser.new.parse_dsl( "<foo></foo>" ) do
         find_element( ["bar","foo" ] )
       end.should ==("foo")
     end
@@ -56,7 +56,7 @@ describe XmlStreamParser do
 
     it "should return END_CONTEXT if element context terminates" do
       called = false
-      XmlStreamParser.new.parse( '<foo></foo>' ) do
+      XmlStreamParser.new.parse_dsl( '<foo></foo>' ) do
         element("foo") do |name,attrs|
           name.should ==("foo")
 
@@ -74,7 +74,7 @@ describe XmlStreamParser do
     end
 
     it "should return END_CONTEXT if document ends" do
-      XmlStreamParser.new.parse( '<foo></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo></foo>') do
         element("foo") do |name,attrs|
         end
         f = find_element("bar")
@@ -86,7 +86,7 @@ describe XmlStreamParser do
   describe "discard" do
     
     it "should discard text content of an element" do
-      XmlStreamParser.new.parse( '<foo>blah blah blah</foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo>blah blah blah</foo>') do
         element("foo") do |name,attrs|
           discard
           "foo"
@@ -95,7 +95,7 @@ describe XmlStreamParser do
     end
 
     it "should discard element content of an element" do
-      XmlStreamParser.new.parse( '<foo><bar/><foobar></foobar></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo><bar/><foobar></foobar></foo>') do
         element("foo") do |name,attrs|
           discard
           "foo"
@@ -104,7 +104,7 @@ describe XmlStreamParser do
     end
 
     it "should discard mixed content of an element" do
-      XmlStreamParser.new.parse( '<foo><bar/>blah blah<foobar></foobar> blah blah </foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo><bar/>blah blah<foobar></foobar> blah blah </foo>') do
         element("foo") do |name,attrs|
           discard
           "foo"
@@ -117,7 +117,7 @@ describe XmlStreamParser do
   describe "element" do
 
     it "should return NOTHING if optional and element not found" do
-      XmlStreamParser.new.parse( '<foo><foofoo/></foo>' ) do
+      XmlStreamParser.new.parse_dsl( '<foo><foofoo/></foo>' ) do
         element("foo") do |name,attrs|
           element("bar",true) do |name,attrs|
             "bar"
@@ -130,7 +130,7 @@ describe XmlStreamParser do
     end
 
     it "should return END_CONTEXT if optional and context ends" do
-      XmlStreamParser.new.parse( '<foo></foo>' ) do
+      XmlStreamParser.new.parse_dsl( '<foo></foo>' ) do
         element("foo") do |name,attrs|
           element("bar",true) do |name,attrs|
             "bar"
@@ -142,7 +142,7 @@ describe XmlStreamParser do
 
     it "should not propagate sentinel values up the call hierarchy" do
       called = false
-      XmlStreamParser.new.parse( '<foo></foo>' ) do
+      XmlStreamParser.new.parse_dsl( '<foo></foo>' ) do
         element("foo") do |name,attrs|
           called = true
           element("bar",true) do |name,attrs|
@@ -162,7 +162,7 @@ describe XmlStreamParser do
     end
 
     it "should consume the end tag even if block calls return" do
-      XmlStreamParser.new.parse( '<foo><bar/></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo><bar/></foo>') do
         element( "foo" ) do |name, attrs|
           Foo.parse_bar( self )
         end
@@ -170,7 +170,7 @@ describe XmlStreamParser do
     end
 
     it "should consume the end tag even if block calls break" do
-      XmlStreamParser.new.parse( '<foo><bar/></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo><bar/></foo>') do
         element( "foo" ) do |name, attrs|
           element( "bar" ) do |name, attrs|
             break
@@ -182,7 +182,7 @@ describe XmlStreamParser do
 
     it "should raise on premature document termination" do
       lambda {
-        XmlStreamParser.new.parse( '<foo>' ) do
+        XmlStreamParser.new.parse_dsl( '<foo>' ) do
           element("foo") do |name,attrs|
             element("bar",false) do |name,attrs|
               "bar"
@@ -194,7 +194,7 @@ describe XmlStreamParser do
 
     it "should raise on premature context termination" do
       lambda {
-        XmlStreamParser.new.parse( '<foo></foo>' ) do
+        XmlStreamParser.new.parse_dsl( '<foo></foo>' ) do
           element("foo") do |name,attrs|
             element("bar",false) do |name,attrs|
               "bar"
@@ -205,7 +205,7 @@ describe XmlStreamParser do
     end
 
     it "should consume an element, giving name and attributes to the provided block and returning block result" do
-      XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo a="one" b="two"></foo>') do
         element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
@@ -218,7 +218,7 @@ describe XmlStreamParser do
     end
 
     it "should consume one of many element names, giving name and attrs to block and returning block result" do
-      XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo a="one" b="two"></foo>') do
         element( ["bar","foo"] ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
@@ -228,7 +228,7 @@ describe XmlStreamParser do
     end
 
     it "should ignore whitespace inside element" do
-      XmlStreamParser.new.parse( '<foo a="one" b="two">  \n  \n</foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo a="one" b="two">  \n  \n</foo>') do
         element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
@@ -244,7 +244,7 @@ describe XmlStreamParser do
 
   describe "text" do
     it "should consume an element with text content and give it's name, attrs, text to the block and return the block result" do
-      XmlStreamParser.new.parse( '<foo a="bar">hello mum</foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo a="bar">hello mum</foo>') do
         element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"bar" })
@@ -255,7 +255,7 @@ describe XmlStreamParser do
 
     it "should raise if the element contains element content" do
       lambda {
-        XmlStreamParser.new.parse( '<foo a="bar"><bar/></foo>') do
+        XmlStreamParser.new.parse_dsl( '<foo a="bar"><bar/></foo>') do
           element("foo") do |name,attrs|
             text()
           end
@@ -265,7 +265,7 @@ describe XmlStreamParser do
 
     it "should raise if the element contains mixed content" do
       lambda {
-        XmlStreamParser.new.parse( '<foo a="bar">some <bar/> text</foo>') do
+        XmlStreamParser.new.parse_dsl( '<foo a="bar">some <bar/> text</foo>') do
           element("foo") do |name,attrs|
             text()
           end
@@ -277,7 +277,7 @@ describe XmlStreamParser do
   describe "elements" do
     it "should consume multiple elements" do
       el_counts = Hash.new(0)
-      XmlStreamParser.new.parse( '<foo><bar/><bar/><foobar/></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo><bar/><bar/><foobar/></foo>') do
         element("foo") do |name,attrs|
           elements( ["bar","foobar"] ) do |name,attrs|
             el_counts[name] += 1
@@ -288,7 +288,7 @@ describe XmlStreamParser do
     end
 
     it "should not complain if there are no matching elements" do
-      XmlStreamParser.new.parse( '<foo></foo>') do
+      XmlStreamParser.new.parse_dsl( '<foo></foo>') do
         element("foo") do |name,attrs|
           elements( ["bar","foobar"] ) do |name,attrs|
             el_counts[name] += 1
@@ -297,6 +297,44 @@ describe XmlStreamParser do
       end
     end
     
+  end
+
+  describe "non-DSL mode" do
+    it "should pass the parser to the parse() block" do
+      def foo()
+        "foo"
+      end
+
+      XmlStreamParser.new.parse( '<foo></foo>') do |p|
+        p.should_not ==(nil)
+        foo()
+      end.should =="foo"
+    end
+
+    it "should retain contenxt for element blocks" do
+      def foo()
+        "foo"
+      end
+      XmlStreamParser.new.parse( '<foo></foo>') do |p|
+        p.element('foo') do |name,attrs|
+          name.should =='foo'
+          attrs.should == {}
+          foo()
+        end
+      end.should =="foo"
+    end
+
+    it "should retain context for text blocks" do
+      def bar()
+        "barbar"
+      end
+      XmlStreamParser.new.parse( '<foo>bar</foo>') do |p|
+        p.element('foo') do |name,attrs|
+          p.text{ |t| t.should =='bar' ; t }
+          bar()
+        end
+      end.should =='barbar'
+    end
   end
 
   describe "some more complex examples" do
@@ -312,7 +350,7 @@ EOF
 
       people = {}
 
-      XmlStreamParser.new.parse(doc) do
+      XmlStreamParser.new.parse_dsl(doc) do
         element("people") do |name,attrs|
           elements("person") do |name, attrs|
             people[attrs["name"]] = text
@@ -346,7 +384,7 @@ EOF
       
       people = Hash.new{ |h,k| h[k] = {:friends=>Set.new([]), :likes=>Set.new([]) } }
 
-      XmlStreamParser.new.parse(doc) do
+      XmlStreamParser.new.parse_dsl(doc) do
         element("people") do |name,attrs|
           elements("person") do |name, attrs|
             person_name = attrs["name"]
