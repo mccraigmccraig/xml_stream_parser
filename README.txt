@@ -17,11 +17,14 @@ a basic library for pull parsing of large xml documents
 == PROBLEMS:
 
  - it's very basic
- - no validation. probably missing a pile of useful features
+ - no validation
 
 == SYNOPSIS:
 
-# parse xml stream data, possibly never ending, and do things with it. e.g.
+require 'rubygems'
+require 'xml_stream_parser'
+
+# parse xml stream data, possibly never ending, and do things with it
 
 doc = <<-EOF
 <people>
@@ -31,16 +34,13 @@ doc = <<-EOF
 </people>
 EOF
 
-# can be parsed with :
-
-require 'rubygems'
-require 'xml_stream_parser'
+# can be parsed with
 
 people = {}
-XmlStreamParser.new.parse(doc) do |p|
-  p.element("people") do |name,attrs|
-    p.elements("person") do |name, attrs|
-      people[attrs["name"]] = p.text
+XmlStreamParser.new.parse(doc) do
+  element("people") do |name,attrs|
+    elements("person") do |name, attrs|
+      people[attrs["name"]] = text
     end
   end
 end

@@ -8,8 +8,8 @@ require File.expand_path( File.join( File.dirname(__FILE__) , ".." , "lib", "xml
 describe XmlStreamParser do
   it "should work on a StringIO" do
     io = StringIO.new( "<foo/>")
-    XmlStreamParser.new.parse(io) do |p|
-      p.element("foo") do |name,attrs|
+    XmlStreamParser.new.parse(io) do
+      element("foo") do |name,attrs|
         name.should ==("foo")
         name
       end
@@ -17,9 +17,9 @@ describe XmlStreamParser do
   end
 
   it "should parse a simple one element document" do
-    XmlStreamParser.new.parse( "<foo></foo>" ) do |p|
+    XmlStreamParser.new.parse( "<foo></foo>" ) do
       called = false
-      p.element("foo") { |name,attrs|
+      element("foo") { |name,attrs|
         called = true
         name.should ==("foo")
         attrs.should ==({})
@@ -31,10 +31,10 @@ describe XmlStreamParser do
   describe "find_element" do
     
     it "should skip whitespace to find an element" do
-      XmlStreamParser.new.parse( "   \n\n\n<foo></foo>") do |p|
-        name = p.find_element("foo")
+      XmlStreamParser.new.parse( "   \n\n\n<foo></foo>") do
+        name = find_element("foo")
         name.should ==("foo")
-        e = p.pull_parser.pull
+        e = pull_parser.pull
         e.start_element?.should ==(true)
         e[0].should == "foo"
         e[1].should == {}
@@ -42,28 +42,28 @@ describe XmlStreamParser do
     end
 
     it "should return NOTHING on unexpected elements" do
-      XmlStreamParser.new.parse( "<foo></foo>") do |p|
-        p.find_element("bar")
+      XmlStreamParser.new.parse( "<foo></foo>") do
+        find_element("bar")
       end.should ==(XmlStreamParser::NOTHING)
     end
 
     it "should match one of multiple elements" do
-      XmlStreamParser.new.parse( "<foo></foo>" ) do |p|
-        p.find_element( ["bar","foo" ] )
+      XmlStreamParser.new.parse( "<foo></foo>" ) do
+        find_element( ["bar","foo" ] )
       end.should ==("foo")
     end
 
 
-    it "should return END_CONTEXT if element context terminates" do |p|
+    it "should return END_CONTEXT if element context terminates" do
       called = false
-      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
-        p.element("foo") do |name,attrs|
+      XmlStreamParser.new.parse( '<foo></foo>' ) do
+        element("foo") do |name,attrs|
           name.should ==("foo")
 
-          n = p.find_element("bar")
+          n = find_element("bar")
           n.should ==(XmlStreamParser::END_CONTEXT)
 
-          e = p.pull_parser.peek
+          e = pull_parser.peek
           e.end_element?.should ==(true)
           e[0].should ==("foo")
 
@@ -73,11 +73,11 @@ describe XmlStreamParser do
       called.should ==(true)
     end
 
-    it "should return END_CONTEXT if document ends" do |p|
-      XmlStreamParser.new.parse( '<foo></foo>') do |p|
-        p.element("foo") do |name,attrs|
+    it "should return END_CONTEXT if document ends" do
+      XmlStreamParser.new.parse( '<foo></foo>') do
+        element("foo") do |name,attrs|
         end
-        f = p.find_element("bar")
+        f = find_element("bar")
         f.should ==( XmlStreamParser::END_CONTEXT )
       end
     end
@@ -85,28 +85,28 @@ describe XmlStreamParser do
 
   describe "discard" do
     
-    it "should discard text content of an element" do |p|
-      XmlStreamParser.new.parse( '<foo>blah blah blah</foo>') do |p|
-        p.element("foo") do |name,attrs|
-          p.discard
+    it "should discard text content of an element" do
+      XmlStreamParser.new.parse( '<foo>blah blah blah</foo>') do
+        element("foo") do |name,attrs|
+          discard
           "foo"
         end
       end.should ==("foo")
     end
 
-    it "should discard element content of an element" do |p|
-      XmlStreamParser.new.parse( '<foo><bar/><foobar></foobar></foo>') do |p|
-        p.element("foo") do |name,attrs|
-          p.discard
+    it "should discard element content of an element" do
+      XmlStreamParser.new.parse( '<foo><bar/><foobar></foobar></foo>') do
+        element("foo") do |name,attrs|
+          discard
           "foo"
         end
       end.should ==("foo")
     end
 
-    it "should discard mixed content of an element" do |p|
-      XmlStreamParser.new.parse( '<foo><bar/>blah blah<foobar></foobar> blah blah </foo>') do |p|
-        p.element("foo") do |name,attrs|
-          p.discard
+    it "should discard mixed content of an element" do
+      XmlStreamParser.new.parse( '<foo><bar/>blah blah<foobar></foobar> blah blah </foo>') do
+        element("foo") do |name,attrs|
+          discard
           "foo"
         end
       end.should ==("foo")
@@ -117,12 +117,12 @@ describe XmlStreamParser do
   describe "element" do
 
     it "should return NOTHING if optional and element not found" do
-      XmlStreamParser.new.parse( '<foo><foofoo/></foo>' ) do |p|
-        p.element("foo") do |name,attrs|
-          p.element("bar",true) do |name,attrs|
+      XmlStreamParser.new.parse( '<foo><foofoo/></foo>' ) do
+        element("foo") do |name,attrs|
+          element("bar",true) do |name,attrs|
             "bar"
           end.should ==(XmlStreamParser::NOTHING)
-          p.element("foofoo") do |name,attrs|
+          element("foofoo") do |name,attrs|
             "foofoo"
           end
         end
@@ -130,9 +130,9 @@ describe XmlStreamParser do
     end
 
     it "should return END_CONTEXT if optional and context ends" do
-      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
-        p.element("foo") do |name,attrs|
-          p.element("bar",true) do |name,attrs|
+      XmlStreamParser.new.parse( '<foo></foo>' ) do
+        element("foo") do |name,attrs|
+          element("bar",true) do |name,attrs|
             "bar"
           end.should ==(XmlStreamParser::END_CONTEXT)
           "foofoo"
@@ -142,10 +142,10 @@ describe XmlStreamParser do
 
     it "should not propagate sentinel values up the call hierarchy" do
       called = false
-      XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
-        p.element("foo") do |name,attrs|
+      XmlStreamParser.new.parse( '<foo></foo>' ) do
+        element("foo") do |name,attrs|
           called = true
-          p.element("bar",true) do |name,attrs|
+          element("bar",true) do |name,attrs|
             "bar"
           end.should ==(XmlStreamParser::END_CONTEXT)
         end
@@ -153,24 +153,26 @@ describe XmlStreamParser do
       called.should == (true)
     end
 
-    def parse_bar( p )
-      p.element("bar") do |name,attrs|
-        return "barbar"
+    class Foo
+      def self.parse_bar( p )
+        p.element("bar") do |name,attrs|
+          return "barbar"
+        end
       end
     end
 
     it "should consume the end tag even if block calls return" do
-      XmlStreamParser.new.parse( '<foo><bar/></foo>') do |p|
-        p.element( "foo" ) do |name, attrs|
-          parse_bar( p )
+      XmlStreamParser.new.parse( '<foo><bar/></foo>') do
+        element( "foo" ) do |name, attrs|
+          Foo.parse_bar( self )
         end
       end.should ==("barbar" )
     end
 
     it "should consume the end tag even if block calls break" do
-      XmlStreamParser.new.parse( '<foo><bar/></foo>') do |p|
-        p.element( "foo" ) do |name, attrs|
-          p.element( "bar" ) do |name, attrs|
+      XmlStreamParser.new.parse( '<foo><bar/></foo>') do
+        element( "foo" ) do |name, attrs|
+          element( "bar" ) do |name, attrs|
             break
           end
           "foo"
@@ -180,9 +182,9 @@ describe XmlStreamParser do
 
     it "should raise on premature document termination" do
       lambda {
-        XmlStreamParser.new.parse( '<foo>' ) do |p|
-          p.element("foo") do |name,attrs|
-            p.element("bar",false) do |name,attrs|
+        XmlStreamParser.new.parse( '<foo>' ) do
+          element("foo") do |name,attrs|
+            element("bar",false) do |name,attrs|
               "bar"
             end
           end
@@ -192,9 +194,9 @@ describe XmlStreamParser do
 
     it "should raise on premature context termination" do
       lambda {
-        XmlStreamParser.new.parse( '<foo></foo>' ) do |p|
-          p.element("foo") do |name,attrs|
-            p.element("bar",false) do |name,attrs|
+        XmlStreamParser.new.parse( '<foo></foo>' ) do
+          element("foo") do |name,attrs|
+            element("bar",false) do |name,attrs|
               "bar"
             end
           end
@@ -203,21 +205,21 @@ describe XmlStreamParser do
     end
 
     it "should consume an element, giving name and attributes to the provided block and returning block result" do
-      XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do |p|
-        p.element( "foo" ) do |name, attrs|
+      XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do
+        element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
           "blockresult"
         end.should ==("blockresult")
-        e = p.pull_parser.peek
+        e = pull_parser.peek
         e.end_document?.should ==(true)
         "foofoo"
       end.should ==("foofoo")
     end
 
     it "should consume one of many element names, giving name and attrs to block and returning block result" do
-      XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do |p|
-        p.element( ["bar","foo"] ) do |name, attrs|
+      XmlStreamParser.new.parse( '<foo a="one" b="two"></foo>') do
+        element( ["bar","foo"] ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
           "blockresult"
@@ -226,13 +228,13 @@ describe XmlStreamParser do
     end
 
     it "should ignore whitespace inside element" do
-      XmlStreamParser.new.parse( '<foo a="one" b="two">  \n  \n</foo>') do |p|
-        p.element( "foo" ) do |name, attrs|
+      XmlStreamParser.new.parse( '<foo a="one" b="two">  \n  \n</foo>') do
+        element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"one", "b"=>"two" })
           "blockresult"
         end.should ==("blockresult")
-        e = p.pull_parser.peek
+        e = pull_parser.peek
         e.end_document?.should ==(true)
         "foofoo"
       end.should ==("foofoo")
@@ -242,20 +244,20 @@ describe XmlStreamParser do
 
   describe "text" do
     it "should consume an element with text content and give it's name, attrs, text to the block and return the block result" do
-      XmlStreamParser.new.parse( '<foo a="bar">hello mum</foo>') do |p|
-        p.element( "foo" ) do |name, attrs|
+      XmlStreamParser.new.parse( '<foo a="bar">hello mum</foo>') do
+        element( "foo" ) do |name, attrs|
           name.should ==("foo")
           attrs.should ==({ "a"=>"bar" })
-          p.text
+          text
         end
       end.should ==("hello mum")
     end
 
     it "should raise if the element contains element content" do
       lambda {
-        XmlStreamParser.new.parse( '<foo a="bar"><bar/></foo>') do |p|
-          p.element("foo") do |name,attrs|
-            p.text()
+        XmlStreamParser.new.parse( '<foo a="bar"><bar/></foo>') do
+          element("foo") do |name,attrs|
+            text()
           end
         end
       }.should raise_error(RuntimeError)
@@ -263,9 +265,9 @@ describe XmlStreamParser do
 
     it "should raise if the element contains mixed content" do
       lambda {
-        XmlStreamParser.new.parse( '<foo a="bar">some <bar/> text</foo>') do |p|
-          p.element("foo") do |name,attrs|
-            p.text()
+        XmlStreamParser.new.parse( '<foo a="bar">some <bar/> text</foo>') do
+          element("foo") do |name,attrs|
+            text()
           end
         end
       }.should raise_error(RuntimeError)
@@ -275,9 +277,9 @@ describe XmlStreamParser do
   describe "elements" do
     it "should consume multiple elements" do
       el_counts = Hash.new(0)
-      XmlStreamParser.new.parse( '<foo><bar/><bar/><foobar/></foo>') do |p|
-        p.element("foo") do |name,attrs|
-          p.elements( ["bar","foobar"] ) do |name,attrs|
+      XmlStreamParser.new.parse( '<foo><bar/><bar/><foobar/></foo>') do
+        element("foo") do |name,attrs|
+          elements( ["bar","foobar"] ) do |name,attrs|
             el_counts[name] += 1
           end
         end
@@ -286,9 +288,9 @@ describe XmlStreamParser do
     end
 
     it "should not complain if there are no matching elements" do
-      XmlStreamParser.new.parse( '<foo></foo>') do |p|
-        p.element("foo") do |name,attrs|
-          p.elements( ["bar","foobar"] ) do |name,attrs|
+      XmlStreamParser.new.parse( '<foo></foo>') do
+        element("foo") do |name,attrs|
+          elements( ["bar","foobar"] ) do |name,attrs|
             el_counts[name] += 1
           end
         end
@@ -308,12 +310,12 @@ describe XmlStreamParser do
 </people>
 EOF
 
-      XmlStreamParser.new.parse(doc) do |p|
+      XmlStreamParser.new.parse(doc) do
         people = {}
         
-        p.element("people") do |name,attrs|
-          p.elements("person") do |name, attrs|
-            people[attrs["name"]] = p.text
+        element("people") do |name,attrs|
+          elements("person") do |name, attrs|
+            people[attrs["name"]] = text
           end
         end
 
@@ -342,20 +344,20 @@ EOF
 </people>
 EOF
       
-      XmlStreamParser.new.parse(doc) do |p|
+      XmlStreamParser.new.parse(doc) do
         people = Hash.new{ |h,k| h[k] = {:friends=>Set.new([]), :likes=>Set.new([]) } }
         
-        p.element("people") do |name,attrs|
-          p.elements("person") do |name, attrs|
+        element("people") do |name,attrs|
+          elements("person") do |name, attrs|
             person_name = attrs["name"]
             people[person_name]
 
-            p.elements(["friend","likes"]) do |name,attrs|
+            elements(["friend","likes"]) do |name,attrs|
               case name
               when "friend" then
                 people[person_name][:friends] << attrs["name"]
               when "likes" then
-                people[person_name][:likes] << p.text
+                people[person_name][:likes] << text
               end
             end
           end

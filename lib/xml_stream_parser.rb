@@ -1,6 +1,7 @@
 require 'stringio'
 require 'rexml/document'
 require 'rexml/parsers/pullparser'
+require File.join( File.dirname(__FILE__), 'instance_exec')
 
 module REXML
   module Parsers
@@ -16,7 +17,7 @@ end
 
 class XmlStreamParser
 
-  VERSION = "0.1.0"
+  VERSION = "0.2.0"
 
   class Sentinel
     def to_s
@@ -51,7 +52,7 @@ class XmlStreamParser
          end
 
     @pull_parser = REXML::Parsers::PullParser.new( io )
-    block.call(self)
+    self.instance_exec(&block)
   ensure
     @pull_parser = nil
   end
@@ -133,7 +134,7 @@ class XmlStreamParser
     # whitespace before it
     err=false
     begin
-      v = block.call(name, attrs)
+      v = self.instance_exec(name, attrs, &block)
       return v if ! v.is_a? Sentinel # do not propagate Sentinels. they confuse callers
     rescue
       err=true  # note that we are erroring, so as not to mask the exception from ensure block
@@ -148,7 +149,7 @@ class XmlStreamParser
   end
 
   # find and consume elements, calling block on each one found
-  # return nil
+  # return result of last find : NOTHING or END_CONTEXT sentinel
   def elements( element_names, &block )
     while true
       break if element(element_names, true, &block).is_a? Sentinel
@@ -168,7 +169,7 @@ class XmlStreamParser
            else
              nil
            end
-    block.call( text ) if block
+    self.instance_exec( text , &block) if block
     text
   end
 
