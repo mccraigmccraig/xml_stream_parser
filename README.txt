@@ -37,9 +37,9 @@ EOF
 # can be parsed with
 
 people = {}
-XmlStreamParser.new.parse(doc) do
-  element("people") do |name,attrs|
-    elements("person") do |name, attrs|
+XmlStreamParser.new.parse_dsl(doc) do
+  element "people" do |name,attrs|
+    elements "person" do |name, attrs|
       people[attrs["name"]] = text
     end
   end
