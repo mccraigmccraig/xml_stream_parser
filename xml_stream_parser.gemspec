@@ -4,7 +4,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["craig mcmillan"]
-  s.date = %q{2009-06-19}
+  s.date = %q{2009-06-24}
   s.description = %q{xml_stream_parser is a *very* basic Ruby parser for xml streams, based on REXML\'s pull parser}
   s.email = %q{craig@trampolinesystems.com}
   s.extra_rdoc_files = ["History.txt", "Manifest.txt", "README.txt"]
