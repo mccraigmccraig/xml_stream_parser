@@ -10,7 +10,7 @@ begin
     gem.email = "craig@trampolinesystems.com"
     gem.homepage = "http://github.com/mccraigmccraig/xml_stream_parser"
     gem.authors = ["mccraigmccraig"]
-    gem.add_development_dependency "rspec", ">= 1.2.9"
+    gem.add_development_dependency "rspec", ">= 1.2.8"
     # gem is a Gem::Specification... see http://www.rubygems.org/read/chapter/20 for additional settings
   end
   Jeweler::GemcutterTasks.new
